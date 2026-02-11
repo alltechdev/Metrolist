@@ -128,6 +128,9 @@ import com.metrolist.music.extensions.findNextMediaItemById
 import com.metrolist.music.extensions.mediaItems
 import com.metrolist.music.extensions.metadata
 import com.metrolist.music.extensions.setOffloadEnabled
+import com.metrolist.music.utils.sabr.SabrClient
+import android.net.Uri
+import java.io.File
 import com.metrolist.music.extensions.toEnum
 import com.metrolist.music.extensions.toMediaItem
 import com.metrolist.music.extensions.toPersistQueue
@@ -2396,7 +2399,41 @@ class MusicService :
                 }
                 scope.launch(Dispatchers.IO) { recoverSong(mediaId, nonNullPlayback) }
 
-                val streamUrl = nonNullPlayback.streamUrl
+                // SABR streaming: download complete audio to file, serve as file:// URI
+                if (nonNullPlayback.isSabr && nonNullPlayback.sabrStreamingUrl != null) {
+                    Timber.tag(TAG).d("SABR mode for $mediaId — downloading via SABR")
+                    val sabrDir = File(cacheDir, "sabr_cache").apply { mkdirs() }
+                    val audioFile = File(sabrDir, "$mediaId.audio")
+
+                    val durationMs = (nonNullPlayback.videoDetails?.lengthSeconds?.toLongOrNull() ?: 0) * 1000L
+
+                    try {
+                        SabrClient.fetchAudio(
+                            streamingUrl = nonNullPlayback.sabrStreamingUrl,
+                            itag = nonNullPlayback.format.itag,
+                            lmt = nonNullPlayback.format.lastModified ?: 0L,
+                            durationMs = durationMs,
+                            poToken = nonNullPlayback.streamingPoToken,
+                            ustreamerConfig = nonNullPlayback.ustreamerConfig,
+                            outputFile = audioFile,
+                        )
+                        Timber.tag(TAG).d("SABR download complete for $mediaId: ${audioFile.length()} bytes")
+                        return@Factory dataSpec.withUri(Uri.fromFile(audioFile))
+                    } catch (e: Exception) {
+                        Timber.tag(TAG).e(e, "SABR download FAILED for $mediaId")
+                        audioFile.delete()
+                        // Fall through to regular stream URL (non-SABR)
+                        Timber.tag(TAG).d("Falling back to regular stream URL after SABR failure")
+                    }
+                }
+
+                val streamUrl = nonNullPlayback.streamUrl.let { url ->
+                    if (url.startsWith("sabr://")) {
+                        // SABR download failed — strip prefix and try as regular URL
+                        Timber.tag(TAG).d("Stripping sabr:// prefix for fallback")
+                        url.removePrefix("sabr://")
+                    } else url
+                }
 
                 songUrlCache[mediaId] =
                     streamUrl to System.currentTimeMillis() + (nonNullPlayback.streamExpiresInSeconds * 1000L)
