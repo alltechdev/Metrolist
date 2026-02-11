@@ -2422,18 +2422,12 @@ class MusicService :
                     } catch (e: Exception) {
                         Timber.tag(TAG).e(e, "SABR download FAILED for $mediaId")
                         audioFile.delete()
-                        // Fall through to regular stream URL (non-SABR)
                         Timber.tag(TAG).d("Falling back to regular stream URL after SABR failure")
                     }
                 }
 
-                val streamUrl = nonNullPlayback.streamUrl.let { url ->
-                    if (url.startsWith("sabr://")) {
-                        // SABR download failed — strip prefix and try as regular URL
-                        Timber.tag(TAG).d("Stripping sabr:// prefix for fallback")
-                        url.removePrefix("sabr://")
-                    } else url
-                }
+                // Regular stream URL (from fallback client or validated main client)
+                val streamUrl = nonNullPlayback.streamUrl
 
                 songUrlCache[mediaId] =
                     streamUrl to System.currentTimeMillis() + (nonNullPlayback.streamExpiresInSeconds * 1000L)

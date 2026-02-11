@@ -130,6 +130,14 @@ object YTPlayerUtils {
         var streamPlayerResponse: PlayerResponse? = null
         var streamFromPoTokenClient = false
 
+        // SABR data saved separately — tried first by MusicService, falls back to streamUrl
+        var sabrStreamingUrl: String? = null
+        var sabrStreamingPoToken: String? = null
+        var sabrUstreamerConfig: String? = null
+        var sabrFormat: PlayerResponse.StreamingData.Format? = null
+        var sabrVideoDetails: PlayerResponse.VideoDetails? = null
+        var sabrExpiresInSeconds: Int? = null
+
         for (clientIndex in (-1 until STREAM_FALLBACK_CLIENTS.size)) {
             format = null
             streamUrl = null
@@ -241,22 +249,26 @@ object YTPlayerUtils {
 
                         if (nTransformWorked) break
 
-                        // N-transforms didn't fix the regular URL — try SABR streaming
-                        if (streamPlayerResponse?.streamingData?.serverAbrStreamingUrl != null) {
-                            Timber.tag(TAG).d("SABR URL available -- trying SABR streaming")
-                            val sabrUrl = streamPlayerResponse.streamingData!!.serverAbrStreamingUrl!!
-                            val transformedSabrUrl = try {
-                                EjsNTransformSolver.transformNParamInUrl(sabrUrl)
+                        // N-transforms didn't fix the regular URL — save SABR data if available
+                        if (sabrStreamingUrl == null && streamPlayerResponse?.streamingData?.serverAbrStreamingUrl != null) {
+                            Timber.tag(TAG).d("SABR URL available -- saving for MusicService to try")
+                            val rawSabrUrl = streamPlayerResponse.streamingData!!.serverAbrStreamingUrl!!
+                            sabrStreamingUrl = try {
+                                EjsNTransformSolver.transformNParamInUrl(rawSabrUrl)
                             } catch (e: Exception) {
                                 Timber.tag(TAG).e(e, "SABR n-transform failed, using raw URL")
-                                sabrUrl
+                                rawSabrUrl
                             }
-                            streamUrl = "sabr://$transformedSabrUrl"
-                            break
+                            sabrStreamingPoToken = poTokenResult?.streamingDataPoToken
+                            sabrUstreamerConfig = streamPlayerResponse.playerConfig
+                                ?.mediaCommonConfig?.mediaUstreamerRequestConfig?.videoPlaybackUstreamerConfig
+                            sabrFormat = format
+                            sabrVideoDetails = videoDetails
+                            sabrExpiresInSeconds = streamExpiresInSeconds
                         }
 
-                        // No SABR either -- continue to fallback clients
-                        Timber.tag(TAG).d("N-transforms failed, no SABR for ${client.clientName}, trying next client...")
+                        // Continue to fallback clients
+                        Timber.tag(TAG).d("N-transforms failed for ${client.clientName}, trying next client...")
                     }
                 }
             } else {
@@ -290,25 +302,21 @@ object YTPlayerUtils {
             throw PlaybackException("Stream expired", null, PlaybackException.ERROR_CODE_REMOTE_ERROR)
         }
 
-        val finalStreamUrl = streamUrl
-        val isSabr = finalStreamUrl.startsWith("sabr://")
+        val hasSabr = sabrStreamingUrl != null
 
-        Timber.tag(TAG).d("=== Stream resolution SUCCESS: itag=${format.itag}, expires=${streamExpiresInSeconds}s, poToken=$streamFromPoTokenClient, isSabr=$isSabr ===")
-
-        val sabrUrl = if (isSabr) finalStreamUrl.removePrefix("sabr://") else null
+        Timber.tag(TAG).d("=== Stream resolution SUCCESS: itag=${format.itag}, expires=${streamExpiresInSeconds}s, poToken=$streamFromPoTokenClient, sabr=$hasSabr ===")
 
         PlaybackData(
             audioConfig = audioConfig,
             videoDetails = videoDetails,
             playbackTracking = playbackTracking,
             format = format,
-            streamUrl = finalStreamUrl,
+            streamUrl = streamUrl,
             streamExpiresInSeconds = streamExpiresInSeconds,
-            isSabr = isSabr,
-            sabrStreamingUrl = sabrUrl,
-            streamingPoToken = if (isSabr) poTokenResult?.streamingDataPoToken else null,
-            ustreamerConfig = if (isSabr) streamPlayerResponse?.playerConfig
-                ?.mediaCommonConfig?.mediaUstreamerRequestConfig?.videoPlaybackUstreamerConfig else null,
+            isSabr = hasSabr,
+            sabrStreamingUrl = sabrStreamingUrl,
+            streamingPoToken = sabrStreamingPoToken,
+            ustreamerConfig = sabrUstreamerConfig,
         )
     }
 
