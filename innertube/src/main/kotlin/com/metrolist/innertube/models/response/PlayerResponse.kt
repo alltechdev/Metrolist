@@ -27,12 +27,23 @@ data class PlayerResponse(
     @Serializable
     data class PlayerConfig(
         val audioConfig: AudioConfig,
+        val mediaCommonConfig: MediaCommonConfig? = null,
     ) {
         @Serializable
         data class AudioConfig(
             val loudnessDb: Double?,
             val perceptualLoudnessDb: Double?,
         )
+
+        @Serializable
+        data class MediaCommonConfig(
+            val mediaUstreamerRequestConfig: MediaUstreamerRequestConfig? = null,
+        ) {
+            @Serializable
+            data class MediaUstreamerRequestConfig(
+                val videoPlaybackUstreamerConfig: String? = null,
+            )
+        }
     }
 
     @Serializable
@@ -40,6 +51,7 @@ data class PlayerResponse(
         val formats: List<Format>?,
         val adaptiveFormats: List<Format>,
         val expiresInSeconds: Int,
+        val serverAbrStreamingUrl: String? = null,
     ) {
         @Serializable
         data class Format(

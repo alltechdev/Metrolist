@@ -150,3 +150,14 @@
 -keepclasseswithmembers class com.metrolist.shazamkit.models.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
+
+## Custom Cipher & PoToken WebView JS interfaces
+-keepclassmembers class com.metrolist.music.utils.cipher.CipherWebView {
+   public *;
+}
+-keepclassmembers class com.metrolist.music.utils.sabr.EjsNTransformSolver$SolverWebView {
+   public *;
+}
+-keepclassmembers class com.metrolist.music.utils.potoken.PoTokenWebView {
+   public *;
+}
