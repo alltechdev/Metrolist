@@ -94,9 +94,12 @@ object SabrClient {
         outputFile: File,
     ): SabrResult {
         Timber.tag(TAG).d("SABR fetch START: itag=$itag, lmt=$lmt, poToken=${poToken != null}, ustreamerConfig=${ustreamerConfig != null}")
+        Timber.tag(TAG).d("SABR ustreamerConfig raw (first 100 chars): ${ustreamerConfig?.take(100)}")
+        Timber.tag(TAG).d("SABR poToken raw (first 50 chars): ${poToken?.take(50)}")
 
         val poTokenBytes = decodeBase64(poToken)
         val ustreamerBytes = decodeBase64(ustreamerConfig)
+        Timber.tag(TAG).d("SABR decoded: poToken=${poTokenBytes?.size} bytes, ustreamer=${ustreamerBytes?.size} bytes")
 
         val locale = YouTube.locale
         val session = SabrSession(url = streamingUrl, preferredItag = itag, preferredLmt = lmt)
@@ -128,6 +131,11 @@ object SabrClient {
 
                 val sep = if ("?" in session.url) "&" else "?"
                 val requestUrl = "${session.url}${sep}rn=${session.requestNumber}"
+
+                if (session.requestNumber == 1) {
+                    Timber.tag(TAG).d("SABR request body size: ${body.size} bytes")
+                    Timber.tag(TAG).d("SABR request body hex (first 64): ${body.take(64).joinToString("") { "%02x".format(it) }}")
+                }
 
                 val request = Request.Builder()
                     .url(requestUrl)
@@ -475,10 +483,19 @@ object SabrClient {
 
     private fun decodeBase64(value: String?): ByteArray? {
         if (value == null) return null
+        // Detect alphabet: URL-safe uses -_, standard uses +/
+        // Android's Base64 silently skips chars from the wrong alphabet
+        // instead of throwing, so we must pick the right mode up front.
+        val isUrlSafe = value.contains('-') || value.contains('_')
+        val flags = if (isUrlSafe) {
+            Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP
+        } else {
+            Base64.NO_WRAP
+        }
         return try {
-            Base64.decode(value, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
+            Base64.decode(value, flags)
         } catch (_: Exception) {
-            try { Base64.decode(value, Base64.DEFAULT) } catch (_: Exception) { null }
+            null
         }
     }
 }

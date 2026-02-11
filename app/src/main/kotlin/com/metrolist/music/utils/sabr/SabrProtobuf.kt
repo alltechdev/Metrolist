@@ -59,35 +59,35 @@ object SabrProtobuf {
 
         // field 1: client_abr_state
         val clientAbrState = buildClientAbrState(state.playerTimeMs)
-        out.writeTag(1, WIRE_LENGTH_DELIMITED)
-        out.writeBytes(clientAbrState)
+        writeTag(out, 1, WIRE_LENGTH_DELIMITED)
+        writeLengthDelimited(out, clientAbrState)
 
         // field 2: initialized_format_ids (repeated)
         for (fmt in state.initializedFormats) {
             val fmtBytes = buildFormatId(fmt.formatId)
-            out.writeTag(2, WIRE_LENGTH_DELIMITED)
-            out.writeBytes(fmtBytes)
+            writeTag(out, 2, WIRE_LENGTH_DELIMITED)
+            writeLengthDelimited(out, fmtBytes)
         }
 
         // field 3: buffered_ranges (repeated)
         for (fmt in state.initializedFormats) {
             for (cr in fmt.consumedRanges) {
                 val brBytes = buildBufferedRange(fmt.formatId, cr)
-                out.writeTag(3, WIRE_LENGTH_DELIMITED)
-                out.writeBytes(brBytes)
+                writeTag(out, 3, WIRE_LENGTH_DELIMITED)
+                writeLengthDelimited(out, brBytes)
             }
         }
 
         // field 5: video_playback_ustreamer_config
         if (ustreamerConfig != null && ustreamerConfig.isNotEmpty()) {
-            out.writeTag(5, WIRE_LENGTH_DELIMITED)
-            out.writeBytes(ustreamerConfig)
+            writeTag(out, 5, WIRE_LENGTH_DELIMITED)
+            writeLengthDelimited(out, ustreamerConfig)
         }
 
         // field 16: preferred_audio_format_ids
         val formatIdBytes = buildFormatId(preferredAudioFormatId)
-        out.writeTag(16, WIRE_LENGTH_DELIMITED)
-        out.writeBytes(formatIdBytes)
+        writeTag(out, 16, WIRE_LENGTH_DELIMITED)
+        writeLengthDelimited(out, formatIdBytes)
 
         // field 19: streamer_context
         val streamerContext = buildStreamerContext(
@@ -95,22 +95,22 @@ object SabrProtobuf {
             state.sabrContexts, state.unsentSabrContextTypes,
             visitorData, clientName, clientVersion, userAgent, hl, gl
         )
-        out.writeTag(19, WIRE_LENGTH_DELIMITED)
-        out.writeBytes(streamerContext)
+        writeTag(out, 19, WIRE_LENGTH_DELIMITED)
+        writeLengthDelimited(out, streamerContext)
 
         return out.toByteArray()
     }
 
     private fun buildClientAbrState(playerTimeMs: Long): ByteArray {
         val out = ByteArrayOutputStream()
-        out.writeTag(28, WIRE_VARINT)
-        out.writeVarint(playerTimeMs)
-        out.writeTag(40, WIRE_VARINT)
-        out.writeVarint(1L)
-        out.writeTag(46, WIRE_VARINT)
-        out.writeVarint(1L)
-        out.writeTag(76, WIRE_VARINT)
-        out.writeVarint(1L)
+        writeTag(out, 28, WIRE_VARINT)
+        writeVarint(out, playerTimeMs)
+        writeTag(out, 40, WIRE_VARINT)
+        writeVarint(out, 1L)
+        writeTag(out, 46, WIRE_VARINT)
+        writeVarint(out, 1L)
+        writeTag(out, 76, WIRE_VARINT)
+        writeVarint(out, 1L)
         return out.toByteArray()
     }
 
@@ -129,28 +129,28 @@ object SabrProtobuf {
         val out = ByteArrayOutputStream()
 
         val clientInfo = buildClientInfo(visitorData, clientName, clientVersion, userAgent, hl, gl)
-        out.writeTag(1, WIRE_LENGTH_DELIMITED)
-        out.writeBytes(clientInfo)
+        writeTag(out, 1, WIRE_LENGTH_DELIMITED)
+        writeLengthDelimited(out, clientInfo)
 
         if (poTokenBytes != null && poTokenBytes.isNotEmpty()) {
-            out.writeTag(2, WIRE_LENGTH_DELIMITED)
-            out.writeBytes(poTokenBytes)
+            writeTag(out, 2, WIRE_LENGTH_DELIMITED)
+            writeLengthDelimited(out, poTokenBytes)
         }
 
         if (playbackCookie != null && playbackCookie.isNotEmpty()) {
-            out.writeTag(3, WIRE_LENGTH_DELIMITED)
-            out.writeBytes(playbackCookie)
+            writeTag(out, 3, WIRE_LENGTH_DELIMITED)
+            writeLengthDelimited(out, playbackCookie)
         }
 
         for (ctx in sabrContexts) {
             val ctxBytes = buildSabrContext(ctx)
-            out.writeTag(5, WIRE_LENGTH_DELIMITED)
-            out.writeBytes(ctxBytes)
+            writeTag(out, 5, WIRE_LENGTH_DELIMITED)
+            writeLengthDelimited(out, ctxBytes)
         }
 
         for (type in unsentSabrContextTypes) {
-            out.writeTag(6, WIRE_VARINT)
-            out.writeVarint(type.toLong())
+            writeTag(out, 6, WIRE_VARINT)
+            writeVarint(out, type.toLong())
         }
 
         return out.toByteArray()
@@ -158,10 +158,10 @@ object SabrProtobuf {
 
     private fun buildSabrContext(ctx: SabrContextData): ByteArray {
         val out = ByteArrayOutputStream()
-        out.writeTag(1, WIRE_VARINT)
-        out.writeVarint(ctx.type.toLong())
-        out.writeTag(2, WIRE_LENGTH_DELIMITED)
-        out.writeBytes(ctx.value)
+        writeTag(out, 1, WIRE_VARINT)
+        writeVarint(out, ctx.type.toLong())
+        writeTag(out, 2, WIRE_LENGTH_DELIMITED)
+        writeLengthDelimited(out, ctx.value)
         return out.toByteArray()
     }
 
@@ -174,26 +174,42 @@ object SabrProtobuf {
         gl: String?,
     ): ByteArray {
         val out = ByteArrayOutputStream()
-        out.writeTag(16, WIRE_VARINT)
-        out.writeVarint(clientName.toLong())
+        if (hl != null) {
+            writeTag(out, 1, WIRE_LENGTH_DELIMITED)
+            writeLengthDelimited(out, hl.toByteArray(Charsets.UTF_8))
+        }
+        if (gl != null) {
+            writeTag(out, 2, WIRE_LENGTH_DELIMITED)
+            writeLengthDelimited(out, gl.toByteArray(Charsets.UTF_8))
+        }
+        if (visitorData != null) {
+            writeTag(out, 14, WIRE_LENGTH_DELIMITED)
+            writeLengthDelimited(out, visitorData.toByteArray(Charsets.UTF_8))
+        }
+        if (userAgent != null) {
+            writeTag(out, 15, WIRE_LENGTH_DELIMITED)
+            writeLengthDelimited(out, userAgent.toByteArray(Charsets.UTF_8))
+        }
+        writeTag(out, 16, WIRE_VARINT)
+        writeVarint(out, clientName.toLong())
         if (clientVersion != null) {
-            out.writeTag(17, WIRE_LENGTH_DELIMITED)
-            out.writeBytes(clientVersion.toByteArray(Charsets.UTF_8))
+            writeTag(out, 17, WIRE_LENGTH_DELIMITED)
+            writeLengthDelimited(out, clientVersion.toByteArray(Charsets.UTF_8))
         }
         return out.toByteArray()
     }
 
     private fun buildFormatId(fid: FormatIdData): ByteArray {
         val out = ByteArrayOutputStream()
-        out.writeTag(1, WIRE_VARINT)
-        out.writeVarint(fid.itag.toLong())
+        writeTag(out, 1, WIRE_VARINT)
+        writeVarint(out, fid.itag.toLong())
         if (fid.lmt > 0) {
-            out.writeTag(2, WIRE_VARINT)
-            out.writeVarint(fid.lmt)
+            writeTag(out, 2, WIRE_VARINT)
+            writeVarint(out, fid.lmt)
         }
         if (fid.xtags != null) {
-            out.writeTag(3, WIRE_LENGTH_DELIMITED)
-            out.writeBytes(fid.xtags.toByteArray(Charsets.UTF_8))
+            writeTag(out, 3, WIRE_LENGTH_DELIMITED)
+            writeLengthDelimited(out, fid.xtags.toByteArray(Charsets.UTF_8))
         }
         return out.toByteArray()
     }
@@ -201,52 +217,52 @@ object SabrProtobuf {
     private fun buildBufferedRange(formatId: FormatIdData, cr: ConsumedRangeData): ByteArray {
         val out = ByteArrayOutputStream()
         val fmtBytes = buildFormatId(formatId)
-        out.writeTag(1, WIRE_LENGTH_DELIMITED)
-        out.writeBytes(fmtBytes)
-        out.writeTag(2, WIRE_VARINT)
-        out.writeVarint(cr.startTimeMs)
-        out.writeTag(3, WIRE_VARINT)
-        out.writeVarint(cr.durationMs)
-        out.writeTag(4, WIRE_VARINT)
-        out.writeVarint(cr.startSequenceNumber.toLong())
-        out.writeTag(5, WIRE_VARINT)
-        out.writeVarint(cr.endSequenceNumber.toLong())
+        writeTag(out, 1, WIRE_LENGTH_DELIMITED)
+        writeLengthDelimited(out, fmtBytes)
+        writeTag(out, 2, WIRE_VARINT)
+        writeVarint(out, cr.startTimeMs)
+        writeTag(out, 3, WIRE_VARINT)
+        writeVarint(out, cr.durationMs)
+        writeTag(out, 4, WIRE_VARINT)
+        writeVarint(out, cr.startSequenceNumber.toLong())
+        writeTag(out, 5, WIRE_VARINT)
+        writeVarint(out, cr.endSequenceNumber.toLong())
         val trBytes = buildTimeRange(cr.startTimeMs, cr.durationMs)
-        out.writeTag(6, WIRE_LENGTH_DELIMITED)
-        out.writeBytes(trBytes)
+        writeTag(out, 6, WIRE_LENGTH_DELIMITED)
+        writeLengthDelimited(out, trBytes)
         return out.toByteArray()
     }
 
     private fun buildTimeRange(startTicks: Long, durationTicks: Long): ByteArray {
         val out = ByteArrayOutputStream()
-        out.writeTag(1, WIRE_VARINT)
-        out.writeVarint(startTicks)
-        out.writeTag(2, WIRE_VARINT)
-        out.writeVarint(durationTicks)
-        out.writeTag(3, WIRE_VARINT)
-        out.writeVarint(1000L)
+        writeTag(out, 1, WIRE_VARINT)
+        writeVarint(out, startTicks)
+        writeTag(out, 2, WIRE_VARINT)
+        writeVarint(out, durationTicks)
+        writeTag(out, 3, WIRE_VARINT)
+        writeVarint(out, 1000L)
         return out.toByteArray()
     }
 
     // Standard protobuf encoding helpers
-    private fun ByteArrayOutputStream.writeTag(fieldNumber: Int, wireType: Int) {
-        writeVarint(((fieldNumber shl 3) or wireType).toLong())
+    private fun writeTag(out: ByteArrayOutputStream, fieldNumber: Int, wireType: Int) {
+        writeVarint(out, ((fieldNumber shl 3) or wireType).toLong())
     }
 
-    private fun ByteArrayOutputStream.writeVarint(value: Long) {
+    private fun writeVarint(out: ByteArrayOutputStream, value: Long) {
         var v = value
         while (true) {
             if ((v and 0x7FL.inv()) == 0L) {
-                write(v.toInt())
+                out.write(v.toInt())
                 return
             }
-            write(((v.toInt() and 0x7F) or 0x80))
+            out.write(((v.toInt() and 0x7F) or 0x80))
             v = v ushr 7
         }
     }
 
-    private fun ByteArrayOutputStream.writeBytes(data: ByteArray) {
-        writeVarint(data.size.toLong())
-        write(data)
+    private fun writeLengthDelimited(out: ByteArrayOutputStream, data: ByteArray) {
+        writeVarint(out, data.size.toLong())
+        out.write(data)
     }
 }

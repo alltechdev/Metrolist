@@ -67,6 +67,8 @@ object YTPlayerUtils {
         val streamExpiresInSeconds: Int,
         val isSabr: Boolean = false,
         val sabrStreamingUrl: String? = null,
+        val sabrItag: Int? = null,
+        val sabrLmt: Long? = null,
         val streamingPoToken: String? = null,
         val ustreamerConfig: String? = null,
     )
@@ -315,6 +317,8 @@ object YTPlayerUtils {
             streamExpiresInSeconds = streamExpiresInSeconds,
             isSabr = hasSabr,
             sabrStreamingUrl = sabrStreamingUrl,
+            sabrItag = sabrFormat?.itag,
+            sabrLmt = sabrFormat?.lastModified,
             streamingPoToken = sabrStreamingPoToken,
             ustreamerConfig = sabrUstreamerConfig,
         )
