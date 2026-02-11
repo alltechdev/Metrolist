@@ -206,23 +206,44 @@ object YTPlayerUtils {
 
                     // For web clients: try n-parameter transform and re-validate
                     if (client.useWebPoTokens) {
+                        // Try CipherDeobfuscator n-transform first
+                        var nTransformWorked = false
                         try {
                             val nTransformed = CipherDeobfuscator.transformNParamInUrl(streamUrl)
                             if (nTransformed != streamUrl) {
-                                Timber.tag(TAG).d("N-transform applied, re-validating...")
+                                Timber.tag(TAG).d("CipherDeobfuscator n-transform applied, re-validating...")
                                 if (validateStatus(nTransformed)) {
                                     Timber.tag(TAG).d("N-transformed URL VALIDATED OK!")
                                     streamUrl = nTransformed
-                                    break
+                                    nTransformWorked = true
                                 }
                             }
                         } catch (e: Exception) {
-                            Timber.tag(TAG).e(e, "N-transform error")
+                            Timber.tag(TAG).e(e, "CipherDeobfuscator n-transform error")
                         }
 
-                        // Use SABR when available
+                        // If CipherDeobfuscator n-transform failed, try EjsNTransformSolver on regular URL
+                        if (!nTransformWorked) {
+                            try {
+                                val ejsTransformed = EjsNTransformSolver.transformNParamInUrl(streamUrl)
+                                if (ejsTransformed != streamUrl) {
+                                    Timber.tag(TAG).d("EJS n-transform applied, re-validating...")
+                                    if (validateStatus(ejsTransformed)) {
+                                        Timber.tag(TAG).d("EJS n-transformed URL VALIDATED OK!")
+                                        streamUrl = ejsTransformed
+                                        nTransformWorked = true
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                Timber.tag(TAG).e(e, "EJS n-transform error")
+                            }
+                        }
+
+                        if (nTransformWorked) break
+
+                        // N-transforms didn't fix the regular URL — try SABR streaming
                         if (streamPlayerResponse?.streamingData?.serverAbrStreamingUrl != null) {
-                            Timber.tag(TAG).d("SABR URL available -- using SABR streaming")
+                            Timber.tag(TAG).d("SABR URL available -- trying SABR streaming")
                             val sabrUrl = streamPlayerResponse.streamingData!!.serverAbrStreamingUrl!!
                             val transformedSabrUrl = try {
                                 EjsNTransformSolver.transformNParamInUrl(sabrUrl)
@@ -233,6 +254,9 @@ object YTPlayerUtils {
                             streamUrl = "sabr://$transformedSabrUrl"
                             break
                         }
+
+                        // No SABR either -- continue to fallback clients
+                        Timber.tag(TAG).d("N-transforms failed, no SABR for ${client.clientName}, trying next client...")
                     }
                 }
             } else {
