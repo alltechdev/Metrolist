@@ -662,4 +662,12 @@
     <string name="column_label">Col %d</string>
     <string name="csv_import_failed">Failed to import CSV file</string>
     <string name="csv_preview_failed">Failed to preview CSV file</string>
+
+    <!-- Playback Log -->
+    <string name="playback_log">Playback Log</string>
+    <string name="playback_log_title">Playback Log</string>
+    <string name="clear_log">Clear</string>
+    <string name="copy_log">Copy</string>
+    <string name="log_cleared">Log cleared</string>
+    <string name="log_copied">Log copied to clipboard</string>
 </resources>

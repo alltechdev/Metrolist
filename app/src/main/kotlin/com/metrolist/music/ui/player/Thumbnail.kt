@@ -82,6 +82,7 @@ import com.metrolist.music.constants.SwipeThumbnailKey
 import com.metrolist.music.constants.ThumbnailCornerRadius
 import com.metrolist.music.listentogether.RoomRole
 import com.metrolist.music.ui.component.CastButton
+import com.metrolist.music.ui.menu.PlaybackLogDialog
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
 import kotlinx.coroutines.delay
@@ -290,6 +291,9 @@ fun Thumbnail(
         }
     }
 
+    // Playback log dialog state
+    var showPlaybackLogDialog by remember { mutableStateOf(false) }
+
     // Seek effect state
     var showSeekEffect by remember { mutableStateOf(false) }
     var seekDirection by remember { mutableStateOf("") }
@@ -425,6 +429,34 @@ fun Thumbnail(
             modifier = Modifier.align(Alignment.Center)
         ) {
             SeekEffectOverlay(seekDirection = seekDirection)
+        }
+
+        // Playback log button
+        androidx.compose.material3.TextButton(
+            onClick = { showPlaybackLogDialog = true },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 4.dp)
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.bug_report),
+                contentDescription = null,
+                tint = textBackgroundColor.copy(alpha = 0.7f),
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = stringResource(R.string.playback_log),
+                color = textBackgroundColor.copy(alpha = 0.7f),
+                style = MaterialTheme.typography.labelLarge
+            )
+        }
+
+        if (showPlaybackLogDialog && mediaMetadata != null) {
+            PlaybackLogDialog(
+                mediaMetadata = mediaMetadata!!,
+                onDismiss = { showPlaybackLogDialog = false },
+            )
         }
     }
 }
