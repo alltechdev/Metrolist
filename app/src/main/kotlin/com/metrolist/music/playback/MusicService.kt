@@ -2410,8 +2410,8 @@ class MusicService :
                     try {
                         SabrClient.fetchAudio(
                             streamingUrl = nonNullPlayback.sabrStreamingUrl,
-                            itag = nonNullPlayback.format.itag,
-                            lmt = nonNullPlayback.format.lastModified ?: 0L,
+                            itag = nonNullPlayback.sabrItag ?: nonNullPlayback.format.itag,
+                            lmt = nonNullPlayback.sabrLmt ?: nonNullPlayback.format.lastModified ?: 0L,
                             durationMs = durationMs,
                             poToken = nonNullPlayback.streamingPoToken,
                             ustreamerConfig = nonNullPlayback.ustreamerConfig,
