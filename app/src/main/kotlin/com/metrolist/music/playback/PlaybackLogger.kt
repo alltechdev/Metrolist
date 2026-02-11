@@ -12,30 +12,38 @@ object PlaybackLogger {
     private const val MAX_LINES = 500
     private val timeFormat = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
 
-    fun log(tag: String, message: String) {
+    /**
+     * Write directly to the buffer. Called by [PlaybackLogTree] for every Timber log.
+     * Does NOT call Timber (to avoid infinite loop).
+     */
+    internal fun appendToBuffer(priority: Int, tag: String?, message: String, throwable: Throwable?) {
         val timestamp = timeFormat.format(Date())
-        val line = "[$timestamp] [$tag] $message"
+        val level = when (priority) {
+            Log.VERBOSE -> "V"
+            Log.DEBUG -> "D"
+            Log.INFO -> "I"
+            Log.WARN -> "W"
+            Log.ERROR -> "E"
+            Log.ASSERT -> "A"
+            else -> "?"
+        }
+        val stackTrace = throwable?.let { "\n${it.stackTraceToString()}" } ?: ""
+        val line = "[$timestamp] [$level] [${tag ?: "?"}] $message$stackTrace"
         synchronized(buffer) {
             buffer.add(line)
             while (buffer.size > MAX_LINES) {
                 buffer.removeAt(0)
             }
         }
-        Timber.tag(tag).i(message)
+    }
+
+    fun log(tag: String, message: String) {
+        appendToBuffer(Log.INFO, tag, message, null)
         Log.i("Zemer_$tag", message)
     }
 
     fun logError(tag: String, message: String, throwable: Throwable? = null) {
-        val timestamp = timeFormat.format(Date())
-        val stackTrace = throwable?.let { "\n${it.stackTraceToString()}" } ?: ""
-        val line = "[$timestamp] [$tag] ERROR: $message$stackTrace"
-        synchronized(buffer) {
-            buffer.add(line)
-            while (buffer.size > MAX_LINES) {
-                buffer.removeAt(0)
-            }
-        }
-        Timber.tag(tag).e(throwable, message)
+        appendToBuffer(Log.ERROR, tag, "ERROR: $message", throwable)
         Log.e("Zemer_$tag", message, throwable)
     }
 
@@ -48,6 +56,17 @@ object PlaybackLogger {
     fun clear() {
         synchronized(buffer) {
             buffer.clear()
+        }
+    }
+
+    /**
+     * Timber Tree that logs to Logcat (like DebugTree) AND captures everything
+     * into PlaybackLogger's in-memory buffer for the in-app log dialog.
+     */
+    class PlaybackLogTree : Timber.DebugTree() {
+        override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
+            super.log(priority, tag, message, t)
+            appendToBuffer(priority, tag, message, t)
         }
     }
 }

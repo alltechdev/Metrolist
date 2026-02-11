@@ -31,6 +31,7 @@ import com.metrolist.music.di.ApplicationScope
 import com.metrolist.music.extensions.toEnum
 import com.metrolist.music.extensions.toInetSocketAddress
 import com.metrolist.music.utils.CrashHandler
+import com.metrolist.music.playback.PlaybackLogger
 import com.metrolist.music.utils.cipher.CipherDeobfuscator
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.reportException
@@ -65,7 +66,7 @@ class App : Application(), SingletonImageLoader.Factory {
         CrashHandler.install(this)
         CipherDeobfuscator.initialize(this)
 
-        Timber.plant(Timber.DebugTree())
+        Timber.plant(PlaybackLogger.PlaybackLogTree())
 
         // تهيئة إعدادات التطبيق عند الإقلاع
         applicationScope.launch {
